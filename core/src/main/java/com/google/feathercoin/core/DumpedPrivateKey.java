@@ -32,7 +32,11 @@ public class DumpedPrivateKey extends VersionedChecksummedBytes {
 
     // Used by ECKey.getPrivateKeyEncoded()
     DumpedPrivateKey(NetworkParameters params, byte[] keyBytes, boolean compressed) {
-        super(params.dumpedPrivateKeyHeader, encode(keyBytes, compressed));
+        //super(params.dumpedPrivateKeyHeader, encode(keyBytes, compressed));
+        // feathercoin-wallet Issue 3
+        // Fix courtesy of d4n13
+        super(params.dumpedPrivateKeyHeader + params.addressHeader, encode(keyBytes, compressed));
+
         this.compressed = compressed;
     }
 
