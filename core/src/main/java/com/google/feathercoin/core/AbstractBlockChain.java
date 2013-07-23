@@ -705,9 +705,15 @@ public abstract class AbstractBlockChain {
     private void checkDifficultyTransitions(StoredBlock storedPrev, Block nextBlock) throws BlockStoreException, VerificationException {
         checkState(lock.isLocked());
         Block prev = storedPrev.getHeader();
+        int nDifficultySwitchHeight = 33000;
+        boolean fNewDifficultyProtocol = ((storedPrev.getHeight() + 1) >= nDifficultySwitchHeight);
+        int nTargetTimespanCurrent = fNewDifficultyProtocol? params.targetTimespan : (params.targetTimespan*4);
+        int interval = nTargetTimespanCurrent/params.targetSpacing;
         
         // Is this supposed to be a difficulty transition point?
-        if ((storedPrev.getHeight() + 1) % params.interval != 0) {
+        if ((storedPrev.getHeight() + 1) % interval != 0 && 
+            (storedPrev.getHeight() + 1) != nDifficultySwitchHeight)
+        {
 
             // TODO: Refactor this hack after 0.5 is released and we stop supporting deserialization compatibility.
             // This should be a method of the NetworkParameters, which should in turn be using singletons and a subclass
@@ -721,7 +727,7 @@ public abstract class AbstractBlockChain {
             if (nextBlock.getDifficultyTarget() != prev.getDifficultyTarget())
                 throw new VerificationException("Unexpected change in difficulty at height " + storedPrev.getHeight() +
                         ": " + Long.toHexString(nextBlock.getDifficultyTarget()) + " vs " +
-                        Long.toHexString(prev.getDifficultyTarget()));
+                        Long.toHexString(prev.getDifficultyTarget()) + ", Interval: "+interval);
             return;
         }
 
@@ -730,9 +736,9 @@ public abstract class AbstractBlockChain {
         long now = System.currentTimeMillis();
         StoredBlock cursor = blockStore.get(prev.getHash());
         
-        int goBack = params.interval - 1;
-        if (cursor.getHeight()+1 != params.interval)
-            goBack = params.interval;
+        int goBack = interval - 1;
+        if (cursor.getHeight()+1 != interval)
+            goBack = interval;
                     
         for (int i = 0; i < goBack; i++) {
             if (cursor == null) {
@@ -746,20 +752,22 @@ public abstract class AbstractBlockChain {
         if (elapsed > 50)
             log.info("Difficulty transition traversal took {}msec", elapsed);
 
-	// Check if our cursor is null.  If it is, we've used checkpoints to restore.
-	if(cursor == null) return;
+        // Check if our cursor is null.  If it is, we've used checkpoints to restore.
+        if(cursor == null) return;
 
         Block blockIntervalAgo = cursor.getHeader();
         int timespan = (int) (prev.getTimeSeconds() - blockIntervalAgo.getTimeSeconds());
         // Limit the adjustment step.
-        if (timespan < params.targetTimespan / 4)
-            timespan = params.targetTimespan / 4;
-        if (timespan > params.targetTimespan * 4)
-            timespan = params.targetTimespan * 4;
+        int nActualTimespanMax = fNewDifficultyProtocol? ((nTargetTimespanCurrent*99)/70) : (nTargetTimespanCurrent*4);
+        int nActualTimespanMin = fNewDifficultyProtocol? ((nTargetTimespanCurrent*70)/99) : (nTargetTimespanCurrent/4);
+        if (timespan < nActualTimespanMin)
+            timespan = nActualTimespanMin;
+        if (timespan > nActualTimespanMax)
+            timespan = nActualTimespanMax;
 
         BigInteger newDifficulty = Utils.decodeCompactBits(prev.getDifficultyTarget());
         newDifficulty = newDifficulty.multiply(BigInteger.valueOf(timespan));
-        newDifficulty = newDifficulty.divide(BigInteger.valueOf(params.targetTimespan));
+        newDifficulty = newDifficulty.divide(BigInteger.valueOf(nTargetTimespanCurrent));
 
         if (newDifficulty.compareTo(params.proofOfWorkLimit) > 0) {
             log.info("Difficulty hit proof of work limit: {}", newDifficulty.toString(16));
@@ -790,8 +798,12 @@ public abstract class AbstractBlockChain {
             // Walk backwards until we find a block that doesn't have the easiest proof of work, then check
             // that difficulty is equal to that one.
             StoredBlock cursor = storedPrev;
+            int nDifficultySwitchHeight = 33000;
+            boolean fNewDifficultyProtocol = ((storedPrev.getHeight() + 1) >= nDifficultySwitchHeight);
+            int nTargetTimespanCurrent = fNewDifficultyProtocol? params.targetTimespan : (params.targetTimespan*4);
+            int interval = nTargetTimespanCurrent/params.targetSpacing;
             while (!cursor.getHeader().equals(params.genesisBlock) &&
-                   cursor.getHeight() % params.interval != 0 &&
+                   cursor.getHeight() % interval != 0 &&
                    cursor.getHeader().getDifficultyTargetAsInteger().equals(params.proofOfWorkLimit))
                 cursor = cursor.getPrev(blockStore);
             BigInteger cursorDifficulty = cursor.getHeader().getDifficultyTargetAsInteger();

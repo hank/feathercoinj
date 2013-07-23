@@ -85,7 +85,7 @@ public class NetworkParameters implements Serializable {
     /** First byte of a base58 encoded dumped private key. See {@link DumpedPrivateKey}. */
     public final int dumpedPrivateKeyHeader;
     /** How many blocks pass between difficulty adjustment periods. Feathercoin standardises this to be 2015. */
-    public /*final*/ int interval;
+    public final int targetSpacing;
     /**
      * How much time in seconds is supposed to pass between "interval" blocks. If the actual elapsed time is
      * significantly different from this value, the network difficulty formula will produce a different value. Both
@@ -139,8 +139,8 @@ public class NetworkParameters implements Serializable {
         if (type == 0 || type == 100) {
             // Production.
             genesisBlock = createGenesis(this);
-            interval = INTERVAL;
             targetTimespan = TARGET_TIMESPAN;
+            targetSpacing = TARGET_SPACING;
             proofOfWorkLimit = Utils.decodeCompactBits(0x1e0fffffL); // FC
             acceptableAddressCodes = new int[] { 14 }; // FC
             dumpedPrivateKeyHeader = 128;
@@ -175,8 +175,8 @@ public class NetworkParameters implements Serializable {
             id = ID_TESTNET;
             // Genesis hash is 000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
             packetMagic = 0xfcc1b7dc;
-            interval = INTERVAL;
             targetTimespan = TARGET_TIMESPAN;
+            targetSpacing = TARGET_SPACING;
             proofOfWorkLimit = Utils.decodeCompactBits(0x1d00ffffL);
             port = 19333;
             addressHeader = 111;
@@ -197,8 +197,8 @@ public class NetworkParameters implements Serializable {
             packetMagic = 0xfabfb5daL;
             port = 18333;
             addressHeader = 111;
-            interval = INTERVAL;
             targetTimespan = TARGET_TIMESPAN;
+            targetSpacing = TARGET_SPACING;
             proofOfWorkLimit = Utils.decodeCompactBits(0x1d0fffffL);
             acceptableAddressCodes = new int[] { 111 };
             dumpedPrivateKeyHeader = 239;
@@ -215,21 +215,22 @@ public class NetworkParameters implements Serializable {
             genesisBlock = createGenesis(this);
             id = ID_UNITTESTNET;
             packetMagic = 0x0b110907;
+            //targetTimespan = TARGET_TIMESPAN;
+            targetTimespan = 200000000;  // 6 years. Just a very big number.
+            targetSpacing = TARGET_SPACING;
             addressHeader = 111;
             proofOfWorkLimit = new BigInteger("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
             genesisBlock.setTime(System.currentTimeMillis() / 1000);
             genesisBlock.setDifficultyTarget(Block.EASIEST_DIFFICULTY_TARGET);
             genesisBlock.solve();
             port = 18333;
-            interval = 10;
             dumpedPrivateKeyHeader = 239;
             allowEmptyPeerChains = false;
-            targetTimespan = 200000000;  // 6 years. Just a very big number.
             spendableCoinbaseDepth = 5;
             acceptableAddressCodes = new int[] { 111 };
             subsidyDecreaseBlockCount = 100;
         } else {
-            throw new RuntimeException();
+            throw new RuntimeException("Unknown protocol type");
         }
     }
 
@@ -279,9 +280,8 @@ public class NetworkParameters implements Serializable {
         return genesisBlock;
     }
 
-    public static final int TARGET_TIMESPAN = (int)(3.5 * 24 * 60 * 60);  // 3.5 days per difficulty cycle, on average.
+    public static final int TARGET_TIMESPAN = (int)(7 * 24 * 60 * 60) / 8;  // 7/8 days per difficulty cycle, on average.
     public static final int TARGET_SPACING = (int)(2.5 * 60);  // 2.5 minutes per block.
-    public static final int INTERVAL = TARGET_TIMESPAN / TARGET_SPACING;
     
     /**
      * Blocks with a timestamp after this should enforce BIP 16, aka "Pay to script hash". This BIP changed the

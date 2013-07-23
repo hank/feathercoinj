@@ -42,7 +42,12 @@ public class BuildCheckpoints {
             @Override
             public void notifyNewBestBlock(StoredBlock block) throws VerificationException {
                 int height = block.getHeight();
-                if (height % params.interval == 0 && block.getHeader().getTimeSeconds() <= newest_limit) {
+                int nDifficultySwitchHeight = 33000;
+                boolean fNewDifficultyProtocol = (height >= nDifficultySwitchHeight);
+                int nTargetTimespanCurrent = fNewDifficultyProtocol ? params.targetTimespan : (params.targetTimespan*4);
+                int interval = nTargetTimespanCurrent/params.targetSpacing;
+
+                if ((height == nDifficultySwitchHeight || height % interval == 0) && block.getHeader().getTimeSeconds() <= newest_limit) {
                     System.out.println(String.format("Checkpointing block %s at height %d",
                             block.getHeader().getHash(), block.getHeight()));
                     checkpoints.put(height, block);
