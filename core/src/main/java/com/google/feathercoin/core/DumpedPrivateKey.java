@@ -62,9 +62,9 @@ public class DumpedPrivateKey extends VersionedChecksummedBytes {
      */
     public DumpedPrivateKey(NetworkParameters params, String encoded) throws AddressFormatException {
         super(encoded);
-        if (params != null && version != params.dumpedPrivateKeyHeader + params.addressHeader)
+        if (params != null && version != (params.dumpedPrivateKeyHeader + params.addressHeader))
             throw new AddressFormatException("Mismatched version number, trying to cross networks? " + version +
-                    " vs " + params.dumpedPrivateKeyHeader + params.addressHeader);
+                    " vs " + (params.dumpedPrivateKeyHeader + params.addressHeader));
         if (bytes.length == 33) {
             compressed = true;
             bytes = Arrays.copyOf(bytes, 32);  // Chop off the additional marker byte.
