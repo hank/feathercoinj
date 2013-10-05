@@ -3144,7 +3144,7 @@ public class Wallet implements Serializable, BlockChainListener {
             // blocks.
             List<Transaction> candidates = new LinkedList<Transaction>();
             for (final Transaction tx : spent.values()) {
-                if (tx.hasConfidence() && tx.getConfidence().getDepthInBlocks() > 504) // interval
+                if (tx.hasConfidence() && tx.getConfidence().getDepthInBlocks() > 126) // interval
                     candidates.add(tx);
             }
             log.info("looked for {} txns to evict and found {} candidates", numToEvict,
