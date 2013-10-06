@@ -781,11 +781,13 @@ public abstract class AbstractBlockChain {
 
         Block blockIntervalAgo = cursor.getHeader();
         long nActualTimespan = (long) (prev.getTimeSeconds() - blockIntervalAgo.getTimeSeconds());
+        log.info("nActualTimespan before retarget: " + nActualTimespan);
 
         // Additional averaging over 4x nInterval window
         if(whichDifficultyProtocol == 2) {
             interval *= 4;
 
+            cursor = blockStore.get(prev.getHash());
             goBack = interval - 1;
             if (cursor.getHeight() + 1 != interval)
                 goBack = interval;
@@ -799,15 +801,21 @@ public abstract class AbstractBlockChain {
                 cursor = blockStore.get(cursor.getHeader().getPrevBlockHash());
             }
             Block blockIntervalAgoLong = cursor.getHeader();
+            log.info("Got block " + cursor.getHeight() + " to use for long calc");
 
             long nActualTimespanLong = (prev.getTimeSeconds() - blockIntervalAgoLong.getTimeSeconds()) / 4;
+            log.info("nActualTimespanLong = " + nActualTimespanLong);
 
             // Average between short and long windows
             long nActualTimespanAvg = (nActualTimespan + nActualTimespanLong) / 2;
 
+            log.info("nActualTimespanAvg = " + nActualTimespanAvg);
+
             // Apply .25 damping
             nActualTimespan = nActualTimespanAvg + (3 * nTargetTimespanCurrent);
             nActualTimespan /= 4;
+
+            log.info("nActualTimespan (damped) = " + nActualTimespan);
 
             log.info("RETARGET: nActualTimespanLong " + nActualTimespanLong + 
                      " nActualTimeSpanAvg = " + nActualTimespanAvg + 
@@ -820,11 +828,13 @@ public abstract class AbstractBlockChain {
         if (nActualTimespan > nActualTimespanMax)
             nActualTimespan = nActualTimespanMax;
 
+        log.info("nActualTimespan (after adj limit) = " + nActualTimespan);
+
         BigInteger newDifficulty = Utils.decodeCompactBits(prev.getDifficultyTarget());
         log.info("Prev diff: {}", newDifficulty.toString(16));
         newDifficulty = newDifficulty.multiply(BigInteger.valueOf(nActualTimespan));
         newDifficulty = newDifficulty.divide(BigInteger.valueOf(nTargetTimespanCurrent));
-        log.info("diff/{} = {}", newDifficulty.toString(16), nTargetTimespanCurrent);
+        log.info("diff/{} = {}", nTargetTimespanCurrent, newDifficulty.toString(16));
 
         if (newDifficulty.compareTo(params.proofOfWorkLimit) > 0) {
             log.info("Difficulty hit proof of work limit: {}", newDifficulty.toString(16));
